@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMatchStore } from '../store/matchStore';
 import { listHistory } from '../persistence/matchRepo';
-import type { MatchState } from '../engine/types';
+import { isHalveItMatch, type AnyMatchState } from '../engine/halveIt';
 
 export function HomePage() {
   const match = useMatchStore((s) => s.match);
-  const [history, setHistory] = useState<MatchState[]>([]);
+  const [history, setHistory] = useState<AnyMatchState[]>([]);
 
   useEffect(() => {
     void listHistory().then(setHistory);
@@ -19,7 +19,7 @@ export function HomePage() {
       <section className="rounded-lg bg-white p-4 shadow-sm dark:bg-slate-900">
         <h1 className="text-2xl font-bold">Darts Scoreboard</h1>
         <p className="mt-1 text-sm opacity-70">
-          Offline-first 501 / 301 scorer. Works from your home screen.
+          Offline-first 501 / 301 / Halve It scorer. Works from your home screen.
         </p>
       </section>
 
@@ -55,8 +55,7 @@ export function HomePage() {
                   {m.players.map((p) => p.name).join(' vs ')}
                 </div>
                 <div className="opacity-70">
-                  {m.config.variant} · best of {m.config.bestOfLegs} · winner:{' '}
-                  {m.winnerIdx !== null ? m.players[m.winnerIdx].name : '—'} ·{' '}
+                  {formatMode(m)} · winner: {formatWinner(m)} ·{' '}
                   {new Date(m.updatedAt).toLocaleString()}
                 </div>
               </li>
@@ -66,4 +65,22 @@ export function HomePage() {
       </section>
     </div>
   );
+}
+
+function formatMode(m: AnyMatchState): string {
+  if (isHalveItMatch(m)) {
+    return `Halve It · ${m.config.rounds} rounds${
+      m.config.includeBullRound ? ' (bull final)' : ''
+    }`;
+  }
+  return `${m.config.variant} · best of ${m.config.bestOfLegs}`;
+}
+
+function formatWinner(m: AnyMatchState): string {
+  if (isHalveItMatch(m)) {
+    if (m.winnerIdxs.length === 0) return '—';
+    if (m.winnerIdxs.length > 1) return 'Tied';
+    return m.players[m.winnerIdxs[0]].name;
+  }
+  return m.winnerIdx !== null ? m.players[m.winnerIdx].name : '—';
 }

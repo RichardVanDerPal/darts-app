@@ -2,21 +2,18 @@ import { useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useMatchStore } from '../store/matchStore';
 import { computeMatchStats } from '../engine/stats';
+import { isHalveItMatch } from '../engine/halveIt';
 import { PlayerCard } from '../components/PlayerCard';
 import { CheckoutHint } from '../components/CheckoutHint';
 import { DartPad } from '../components/DartPad';
 import { VisitTotalPad } from '../components/VisitTotalPad';
+import { HalveItGame } from '../components/HalveItGame';
 import { useWakeLock } from '../hooks/useWakeLock';
+import type { MatchState } from '../engine/types';
 
 export function GamePage() {
   const navigate = useNavigate();
   const match = useMatchStore((s) => s.match);
-  const submitVisit = useMatchStore((s) => s.submitVisit);
-  const submitVisitTotal = useMatchStore((s) => s.submitVisitTotal);
-  const undo = useMatchStore((s) => s.undo);
-  const undoAvailable = useMatchStore((s) => s.undoStack.length > 0);
-
-  useWakeLock(match?.status === 'IN_PROGRESS');
 
   useEffect(() => {
     if (match && match.status === 'FINISHED') {
@@ -25,6 +22,26 @@ export function GamePage() {
   }, [match, navigate]);
 
   if (!match) return <Navigate to="/" replace />;
+
+  return (
+    <>
+      {isHalveItMatch(match) ? (
+        <HalveItGame match={match} />
+      ) : (
+        <CountdownGame match={match} />
+      )}
+      <AbandonButton />
+    </>
+  );
+}
+
+function CountdownGame({ match }: { match: MatchState }) {
+  const submitVisit = useMatchStore((s) => s.submitVisit);
+  const submitVisitTotal = useMatchStore((s) => s.submitVisitTotal);
+  const undo = useMatchStore((s) => s.undo);
+  const undoAvailable = useMatchStore((s) => s.undoStack.length > 0);
+
+  useWakeLock(match.status === 'IN_PROGRESS');
 
   const leg = match.legs[match.currentLegIdx];
   const activePlayer = match.players[leg.currentPlayerIdx];
@@ -93,8 +110,6 @@ export function GamePage() {
           onSubmit={(opts) => submitVisitTotal(opts)}
         />
       )}
-
-      <AbandonButton />
     </div>
   );
 }

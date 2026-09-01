@@ -49,10 +49,11 @@ export function createMatch(config: MatchConfig, players: Player[]): MatchState 
     throw new Error(`bestOfLegs must be a positive integer, got ${config.bestOfLegs}`);
   }
   const now = Date.now();
+  const normalizedConfig: MatchConfig = { ...config, kind: 'countdown' };
   return {
-    config,
+    config: normalizedConfig,
     players,
-    legs: [makeLeg(0, 0, players.length, config)],
+    legs: [makeLeg(0, 0, players.length, normalizedConfig)],
     currentLegIdx: 0,
     legsWonByPlayer: new Array(players.length).fill(0),
     status: 'IN_PROGRESS',

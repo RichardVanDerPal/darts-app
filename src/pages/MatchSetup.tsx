@@ -1,13 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMatchStore } from '../store/matchStore';
+import { halveItTargets, type HalveItConfig } from '../engine/halveIt';
 import type { MatchConfig, Player, Variant } from '../engine/types';
 
+type GameKind = 'countdown' | 'halve-it';
+
 interface Draft {
+  gameKind: GameKind;
+  // Countdown fields
   variant: Variant;
   bestOfLegs: number;
   doubleIn: boolean;
   inputMode: MatchConfig['inputMode'];
+  // Halve It fields
+  rounds: number;
+  includeBullRound: boolean;
+  // Shared
   names: string[];
 }
 
@@ -16,12 +25,16 @@ const DEFAULT_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
 export function MatchSetupPage() {
   const navigate = useNavigate();
   const startMatch = useMatchStore((s) => s.startMatch);
+  const startHalveItMatch = useMatchStore((s) => s.startHalveItMatch);
 
   const [draft, setDraft] = useState<Draft>({
+    gameKind: 'countdown',
     variant: '501',
     bestOfLegs: 3,
     doubleIn: false,
     inputMode: 'per-dart',
+    rounds: 9,
+    includeBullRound: false,
     names: [DEFAULT_NAMES[0], DEFAULT_NAMES[1]],
   });
 
@@ -33,13 +46,23 @@ export function MatchSetupPage() {
       id: `p${i}`,
       name: n.trim() || DEFAULT_NAMES[i],
     }));
-    const config: MatchConfig = {
-      variant: draft.variant,
-      bestOfLegs: draft.bestOfLegs,
-      doubleIn: draft.doubleIn,
-      inputMode: draft.inputMode,
-    };
-    startMatch(config, players);
+    if (draft.gameKind === 'countdown') {
+      const config: MatchConfig = {
+        kind: 'countdown',
+        variant: draft.variant,
+        bestOfLegs: draft.bestOfLegs,
+        doubleIn: draft.doubleIn,
+        inputMode: draft.inputMode,
+      };
+      startMatch(config, players);
+    } else {
+      const config: HalveItConfig = {
+        kind: 'halve-it',
+        rounds: draft.rounds,
+        includeBullRound: draft.includeBullRound,
+      };
+      startHalveItMatch(config, players);
+    }
     navigate('/game');
   };
 
@@ -47,53 +70,22 @@ export function MatchSetupPage() {
     <div className="flex flex-col gap-6 py-4">
       <h1 className="text-xl font-semibold">New match</h1>
 
-      <Field label="Variant">
+      <Field label="Game">
         <ChoiceRow
-          value={draft.variant}
+          value={draft.gameKind}
           options={[
-            ['501', '501'],
-            ['301', '301'],
+            ['countdown', 'Countdown (501 / 301)'],
+            ['halve-it', 'Halve It'],
           ]}
-          onChange={(v) => setDraft({ ...draft, variant: v as Variant })}
+          onChange={(v) => setDraft({ ...draft, gameKind: v as GameKind })}
         />
       </Field>
 
-      <Field label="Best of legs">
-        <ChoiceRow
-          value={String(draft.bestOfLegs)}
-          options={[
-            ['1', '1'],
-            ['3', '3'],
-            ['5', '5'],
-            ['7', '7'],
-          ]}
-          onChange={(v) => setDraft({ ...draft, bestOfLegs: Number(v) })}
-        />
-      </Field>
-
-      <Field label="Input mode">
-        <ChoiceRow
-          value={draft.inputMode}
-          options={[
-            ['per-dart', 'Per dart'],
-            ['visit-total', 'Visit total'],
-          ]}
-          onChange={(v) =>
-            setDraft({ ...draft, inputMode: v as MatchConfig['inputMode'] })
-          }
-        />
-      </Field>
-
-      <Field label="Double-in (start on a double)">
-        <ChoiceRow
-          value={draft.doubleIn ? 'on' : 'off'}
-          options={[
-            ['off', 'Off'],
-            ['on', 'On'],
-          ]}
-          onChange={(v) => setDraft({ ...draft, doubleIn: v === 'on' })}
-        />
-      </Field>
+      {draft.gameKind === 'countdown' ? (
+        <CountdownFields draft={draft} setDraft={setDraft} />
+      ) : (
+        <HalveItFields draft={draft} setDraft={setDraft} />
+      )}
 
       <Field label="Players">
         <div className="flex flex-col gap-2">
@@ -152,6 +144,114 @@ export function MatchSetupPage() {
         Start match
       </button>
     </div>
+  );
+}
+
+function CountdownFields({
+  draft,
+  setDraft,
+}: {
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+}) {
+  return (
+    <>
+      <Field label="Variant">
+        <ChoiceRow
+          value={draft.variant}
+          options={[
+            ['501', '501'],
+            ['301', '301'],
+          ]}
+          onChange={(v) => setDraft({ ...draft, variant: v as Variant })}
+        />
+      </Field>
+
+      <Field label="Best of legs">
+        <ChoiceRow
+          value={String(draft.bestOfLegs)}
+          options={[
+            ['1', '1'],
+            ['3', '3'],
+            ['5', '5'],
+            ['7', '7'],
+          ]}
+          onChange={(v) => setDraft({ ...draft, bestOfLegs: Number(v) })}
+        />
+      </Field>
+
+      <Field label="Input mode">
+        <ChoiceRow
+          value={draft.inputMode}
+          options={[
+            ['per-dart', 'Per dart'],
+            ['visit-total', 'Visit total'],
+          ]}
+          onChange={(v) =>
+            setDraft({ ...draft, inputMode: v as MatchConfig['inputMode'] })
+          }
+        />
+      </Field>
+
+      <Field label="Double-in (start on a double)">
+        <ChoiceRow
+          value={draft.doubleIn ? 'on' : 'off'}
+          options={[
+            ['off', 'Off'],
+            ['on', 'On'],
+          ]}
+          onChange={(v) => setDraft({ ...draft, doubleIn: v === 'on' })}
+        />
+      </Field>
+    </>
+  );
+}
+
+function HalveItFields({
+  draft,
+  setDraft,
+}: {
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+}) {
+  const targets = halveItTargets({
+    kind: 'halve-it',
+    rounds: draft.rounds,
+    includeBullRound: draft.includeBullRound,
+  });
+  const sequence = targets
+    .map((t) => (t.kind === 'bull' ? 'Bull' : String(t.segment)))
+    .join(' → ');
+
+  return (
+    <>
+      <Field label={`Rounds — ${draft.rounds}`}>
+        <input
+          type="range"
+          min={1}
+          max={20}
+          step={1}
+          value={draft.rounds}
+          onChange={(e) => setDraft({ ...draft, rounds: Number(e.target.value) })}
+          className="w-full accent-red-600"
+          aria-label="Number of rounds"
+        />
+        <div className="mt-1 break-words text-xs opacity-70 tabular-nums">
+          {sequence}
+        </div>
+      </Field>
+
+      <Field label="Include Bull round (final round)">
+        <ChoiceRow
+          value={draft.includeBullRound ? 'on' : 'off'}
+          options={[
+            ['off', 'Off'],
+            ['on', 'On'],
+          ]}
+          onChange={(v) => setDraft({ ...draft, includeBullRound: v === 'on' })}
+        />
+      </Field>
+    </>
   );
 }
 

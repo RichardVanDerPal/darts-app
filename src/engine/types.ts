@@ -15,7 +15,13 @@ export interface Dart {
 
 export type Variant = '501' | '301';
 
+/** Discriminator identifying which game engine owns a match. */
+export type MatchKind = 'countdown' | 'halve-it';
+
 export interface MatchConfig {
+  /** Countdown (501/301). Optional at read-time so legacy persisted state
+   * (which pre-dates the discriminator) still loads. */
+  kind?: 'countdown';
   variant: Variant;
   /** Best-of-N legs. Match ends when a player wins ceil(N/2) legs. */
   bestOfLegs: number;
