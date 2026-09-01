@@ -15,6 +15,13 @@
 //   - When the last player has thrown in the last round, the match ends and
 //     `winnerIdxs` contains every player tied for the max score.
 //
+// Two visit entry points are supported:
+//   - `submitHalveItVisit(state, darts)` — per-dart entry (Dart[]).
+//   - `submitHalveItHits(state, hits)`  — hits-count entry, where `hits` is
+//     the sum of multipliers across the 3 darts that landed on target
+//     (single = 1, double = 2, treble = 3; for the Bull round, OUTER_BULL = 1
+//     unit and BULL = 2 units, one unit = 25 points).
+//
 // Pure module: no React, no persistence. Match state is immutable — every
 // mutator returns a new object, matching the countdown engine's discipline.
 
@@ -157,6 +164,16 @@ function computeWinners(perPlayer: HalveItPlayerState[]): number[] {
   return idxs;
 }
 
+/** Points scored per "hit unit" for a target (numbered = segment, bull = 25). */
+export function targetUnitValue(target: HalveItTarget): number {
+  return target.kind === 'bull' ? 25 : target.segment;
+}
+
+/** Max meaningful hits-count for a target: 3 trebles (9) or 3 bullseyes (6). */
+export function maxHitsForTarget(target: HalveItTarget): number {
+  return target.kind === 'bull' ? 6 : 9;
+}
+
 /**
  * Submit a visit for the current player. Returns a new match state with the
  * visit recorded, player advanced, and (if the round has ended) the next
@@ -174,11 +191,7 @@ export function submitHalveItVisit(
   }
   darts.forEach(validateDart);
 
-  const round = state.rounds[state.currentRoundIdx];
-  const target = round.target;
-  const playerIdx = state.currentPlayerIdx;
-  const before = state.perPlayer[playerIdx];
-
+  const target = state.rounds[state.currentRoundIdx].target;
   let hits = 0;
   let visitScore = 0;
   for (const d of darts) {
@@ -187,6 +200,43 @@ export function submitHalveItVisit(
       visitScore += dartValue(d);
     }
   }
+  return applyHalveItVisit(state, darts, hits, visitScore);
+}
+
+/**
+ * Submit a visit as a hits-count. `hits` is the sum of multipliers across
+ * the (up to 3) darts that landed on the target:
+ *   - numbered target: single = 1, double = 2, treble = 3 (max 9)
+ *   - bull target: outer bull = 1, bull = 2 (one unit = 25 points; max 6)
+ * `hits === 0` triggers the halve. The stored visit has `darts: []` since
+ * per-dart detail isn't available under this entry mode.
+ */
+export function submitHalveItHits(
+  state: HalveItMatchState,
+  hits: number,
+): HalveItMatchState {
+  if (state.status === 'FINISHED') {
+    throw new Error('Match is already finished');
+  }
+  const target = state.rounds[state.currentRoundIdx].target;
+  const max = maxHitsForTarget(target);
+  if (!Number.isInteger(hits) || hits < 0 || hits > max) {
+    throw new Error(`hits must be an integer 0..${max}, got ${hits}`);
+  }
+  const visitScore = hits * targetUnitValue(target);
+  return applyHalveItVisit(state, [], hits, visitScore);
+}
+
+/** Shared visit-application: record the visit, mutate the player, advance turn/round/match. */
+function applyHalveItVisit(
+  state: HalveItMatchState,
+  darts: Dart[],
+  hits: number,
+  visitScore: number,
+): HalveItMatchState {
+  const round = state.rounds[state.currentRoundIdx];
+  const playerIdx = state.currentPlayerIdx;
+  const before = state.perPlayer[playerIdx];
 
   const scoreBefore = before.score;
   const halved = hits === 0;

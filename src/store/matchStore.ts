@@ -5,6 +5,7 @@ import { createMatch, submitVisit, submitVisitTotal } from '../engine/match';
 import {
   createHalveItMatch,
   isHalveItMatch,
+  submitHalveItHits,
   submitHalveItVisit,
   type AnyMatchState,
   type HalveItConfig,
@@ -30,6 +31,7 @@ interface MatchStore {
   submitVisit: (darts: Dart[]) => void;
   submitVisitTotal: (opts: VisitTotalOptions) => void;
   submitHalveItVisit: (darts: Dart[]) => void;
+  submitHalveItHits: (hits: number) => void;
   undo: () => void;
   abandon: () => Promise<void>;
   archiveIfFinished: () => Promise<void>;
@@ -96,6 +98,18 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       throw new Error('submitHalveItVisit requires a Halve It match');
     }
     const next = submitHalveItVisit(match, darts);
+    const newStack = [...undoStack, match].slice(-UNDO_LIMIT);
+    set({ match: next, undoStack: newStack });
+    scheduleSave(next);
+  },
+
+  submitHalveItHits: (hits) => {
+    const { match, undoStack } = get();
+    if (!match) throw new Error('No active match');
+    if (!isHalveItMatch(match)) {
+      throw new Error('submitHalveItHits requires a Halve It match');
+    }
+    const next = submitHalveItHits(match, hits);
     const newStack = [...undoStack, match].slice(-UNDO_LIMIT);
     set({ match: next, undoStack: newStack });
     scheduleSave(next);

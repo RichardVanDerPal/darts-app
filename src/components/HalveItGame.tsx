@@ -1,6 +1,6 @@
 import { useMatchStore } from '../store/matchStore';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { DartPad } from './DartPad';
+import { HalveItHitsPad } from './HalveItHitsPad';
 import { HalveItPlayerCard } from './HalveItPlayerCard';
 import type { HalveItMatchState, HalveItTarget } from '../engine/halveIt';
 
@@ -14,7 +14,7 @@ interface Props {
  * Game.tsx can stay a thin dispatcher on match.kind.
  */
 export function HalveItGame({ match }: Props) {
-  const submitHalveItVisit = useMatchStore((s) => s.submitHalveItVisit);
+  const submitHalveItHits = useMatchStore((s) => s.submitHalveItHits);
   const undo = useMatchStore((s) => s.undo);
   const undoAvailable = useMatchStore((s) => s.undoStack.length > 0);
 
@@ -86,10 +86,10 @@ export function HalveItGame({ match }: Props) {
         </span>
       </div>
 
-      <DartPad
+      <HalveItHitsPad
         key={`${match.currentRoundIdx}-${match.currentPlayerIdx}-${round.visits.length}`}
-        remaining={activeState.score}
-        onSubmitVisit={(darts) => submitHalveItVisit(darts)}
+        target={target}
+        onSubmit={(hits) => submitHalveItHits(hits)}
       />
     </div>
   );

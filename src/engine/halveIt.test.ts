@@ -3,7 +3,10 @@ import {
   createHalveItMatch,
   dartHitsTarget,
   halveItTargets,
+  maxHitsForTarget,
+  submitHalveItHits,
   submitHalveItVisit,
+  targetUnitValue,
   type HalveItConfig,
 } from './halveIt';
 import type { Dart, Player } from './types';
@@ -252,5 +255,68 @@ describe('halveIt — validation', () => {
     m = submitHalveItVisit(m, [MISS]); // Alice R2 with 1 dart -> halved
     expect(m.perPlayer[0].score).toBe(30);
     expect(m.perPlayer[0].missedRounds).toBe(1);
+  });
+});
+
+describe('halveIt — hits-count entry', () => {
+  it('targetUnitValue and maxHitsForTarget', () => {
+    expect(targetUnitValue({ kind: 'number', segment: 20 })).toBe(20);
+    expect(targetUnitValue({ kind: 'number', segment: 12 })).toBe(12);
+    expect(targetUnitValue({ kind: 'bull' })).toBe(25);
+    expect(maxHitsForTarget({ kind: 'number', segment: 20 })).toBe(9);
+    expect(maxHitsForTarget({ kind: 'bull' })).toBe(6);
+  });
+
+  it('adds hits × segment for a numbered target (T20 = 3 hits = 60)', () => {
+    let m = createHalveItMatch(config(), players);
+    m = submitHalveItHits(m, 3); // one T20 == 3 hit-units
+    expect(m.perPlayer[0].score).toBe(60);
+    expect(m.perPlayer[0].hits).toBe(3);
+    expect(m.perPlayer[0].bestRoundScore).toBe(60);
+    expect(m.currentPlayerIdx).toBe(1);
+  });
+
+  it('halves the score when hits === 0', () => {
+    let m = createHalveItMatch(config(), players);
+    m = submitHalveItHits(m, 5); // Alice: 100
+    m = submitHalveItHits(m, 1); // Bob: 20
+    m = submitHalveItHits(m, 0); // Alice R2: halve 100 -> 50
+    expect(m.perPlayer[0].score).toBe(50);
+    expect(m.perPlayer[0].missedRounds).toBe(1);
+  });
+
+  it('rejects negative or over-max hits', () => {
+    const m = createHalveItMatch(config(), players);
+    expect(() => submitHalveItHits(m, -1)).toThrow();
+    expect(() => submitHalveItHits(m, 10)).toThrow();
+    expect(() => submitHalveItHits(m, 1.5)).toThrow();
+  });
+
+  it('bull round accepts up to 6 hits (3 bullseyes × 25 units)', () => {
+    let m = createHalveItMatch(config({ rounds: 2, includeBullRound: true }), players);
+    m = submitHalveItHits(m, 3); // R1 target 20: 60
+    m = submitHalveItHits(m, 1); // Bob R1: 20
+    // R2 target is bull, unit value 25
+    expect(m.rounds[1].target).toEqual({ kind: 'bull' });
+    m = submitHalveItHits(m, 6); // Alice R2: 6 × 25 = 150
+    expect(m.perPlayer[0].score).toBe(60 + 150);
+    expect(() => submitHalveItHits(m, 7)).toThrow();
+  });
+
+  it('completes the match and detects ties', () => {
+    let m = createHalveItMatch(config({ rounds: 1 }), players);
+    m = submitHalveItHits(m, 2); // Alice 40
+    m = submitHalveItHits(m, 2); // Bob 40
+    expect(m.status).toBe('FINISHED');
+    expect(m.winnerIdxs).toEqual([0, 1]);
+  });
+
+  it('interleaves cleanly with dart-based visits (same round)', () => {
+    let m = createHalveItMatch(config({ rounds: 2 }), players);
+    m = submitHalveItVisit(m, [D(20, 3), MISS, MISS]); // Alice: 60 via darts
+    m = submitHalveItHits(m, 2); // Bob: 40 via hits
+    expect(m.currentRoundIdx).toBe(1);
+    expect(m.perPlayer[0].score).toBe(60);
+    expect(m.perPlayer[1].score).toBe(40);
   });
 });
