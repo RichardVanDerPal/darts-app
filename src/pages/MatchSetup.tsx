@@ -40,6 +40,9 @@ export function MatchSetupPage() {
 
   const canAddPlayer = draft.names.length < 4;
   const canRemovePlayer = draft.names.length > 2;
+  const halveItRoundsValid =
+    Number.isInteger(draft.rounds) && draft.rounds >= 1 && draft.rounds <= 20;
+  const canStart = draft.gameKind === 'countdown' || halveItRoundsValid;
 
   const start = () => {
     const players: Player[] = draft.names.map((n, i) => ({
@@ -139,7 +142,8 @@ export function MatchSetupPage() {
       <button
         type="button"
         onClick={start}
-        className="mt-2 rounded-lg bg-red-600 px-4 py-3 text-center font-semibold text-white shadow hover:bg-red-500"
+        disabled={!canStart}
+        className="mt-2 rounded-lg bg-red-600 px-4 py-3 text-center font-semibold text-white shadow hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Start match
       </button>
@@ -214,34 +218,43 @@ function HalveItFields({
   draft: Draft;
   setDraft: (d: Draft) => void;
 }) {
-  const targets = halveItTargets({
-    kind: 'halve-it',
-    rounds: draft.rounds,
-    includeBullRound: draft.includeBullRound,
-  });
+  const roundsValid =
+    Number.isInteger(draft.rounds) && draft.rounds >= 1 && draft.rounds <= 20;
+  const targets = roundsValid
+    ? halveItTargets({
+        kind: 'halve-it',
+        rounds: draft.rounds,
+        includeBullRound: draft.includeBullRound,
+      })
+    : [];
   const sequence = targets
     .map((t) => (t.kind === 'bull' ? 'Bull' : String(t.segment)))
     .join(' → ');
 
   return (
     <>
-      <Field label={`Rounds — ${draft.rounds}`}>
+      <Field label="Rounds (1–20)">
         <input
-          type="range"
+          type="number"
+          inputMode="numeric"
           min={1}
           max={20}
           step={1}
           value={draft.rounds}
-          onChange={(e) => setDraft({ ...draft, rounds: Number(e.target.value) })}
-          className="w-full accent-red-600"
+          onChange={(e) => {
+            const raw = e.target.value;
+            const parsed = raw === '' ? NaN : Number(raw);
+            setDraft({ ...draft, rounds: Number.isNaN(parsed) ? 0 : parsed });
+          }}
+          className="w-24 rounded-md border border-slate-300 bg-white px-3 py-2 text-base tabular-nums dark:border-slate-700 dark:bg-slate-900"
           aria-label="Number of rounds"
         />
         <div className="mt-1 break-words text-xs opacity-70 tabular-nums">
-          {sequence}
+          {roundsValid ? sequence : 'Enter a number between 1 and 20'}
         </div>
       </Field>
 
-      <Field label="Include Bull round (final round)">
+      <Field label="Include Bull round (extra final round)">
         <ChoiceRow
           value={draft.includeBullRound ? 'on' : 'off'}
           options={[

@@ -44,12 +44,13 @@ describe('halveIt — target sequence', () => {
     expect(targets).toEqual([{ kind: 'number', segment: 20 }]);
   });
 
-  it('replaces the last round with Bull when includeBullRound is on', () => {
+  it('appends a Bull round after the numbered rounds when includeBullRound is on', () => {
     const targets = halveItTargets(config({ rounds: 5, includeBullRound: true }));
-    expect(targets).toHaveLength(5);
+    expect(targets).toHaveLength(6);
     expect(targets[0]).toEqual({ kind: 'number', segment: 20 });
     expect(targets[3]).toEqual({ kind: 'number', segment: 17 });
-    expect(targets[4]).toEqual({ kind: 'bull' });
+    expect(targets[4]).toEqual({ kind: 'number', segment: 16 });
+    expect(targets[5]).toEqual({ kind: 'bull' });
   });
 
   it('rejects out-of-range round counts', () => {
@@ -164,11 +165,11 @@ describe('halveIt — visit scoring', () => {
   });
 
   it('scores BULL/OUTER_BULL correctly in a bull round', () => {
-    let m = createHalveItMatch(config({ rounds: 2, includeBullRound: true }), players);
+    let m = createHalveItMatch(config({ rounds: 1, includeBullRound: true }), players);
     // R1 target 20 for both
     m = submitHalveItVisit(m, [D(20, 3), MISS, MISS]);
     m = submitHalveItVisit(m, [D(20, 1), MISS, MISS]);
-    // R2 target is Bull
+    // R2 target is the appended Bull round
     expect(m.rounds[1].target).toEqual({ kind: 'bull' });
     m = submitHalveItVisit(m, [D('BULL'), D('OUTER_BULL'), MISS]); // 50 + 25 = 75 added
     expect(m.perPlayer[0].score).toBe(60 + 75);
@@ -293,10 +294,10 @@ describe('halveIt — hits-count entry', () => {
   });
 
   it('bull round accepts up to 6 hits (3 bullseyes × 25 units)', () => {
-    let m = createHalveItMatch(config({ rounds: 2, includeBullRound: true }), players);
+    let m = createHalveItMatch(config({ rounds: 1, includeBullRound: true }), players);
     m = submitHalveItHits(m, 3); // R1 target 20: 60
     m = submitHalveItHits(m, 1); // Bob R1: 20
-    // R2 target is bull, unit value 25
+    // R2 is the appended bull round, unit value 25
     expect(m.rounds[1].target).toEqual({ kind: 'bull' });
     m = submitHalveItHits(m, 6); // Alice R2: 6 × 25 = 150
     expect(m.perPlayer[0].score).toBe(60 + 150);

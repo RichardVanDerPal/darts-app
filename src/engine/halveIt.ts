@@ -93,7 +93,11 @@ export function isHalveItMatch(state: AnyMatchState): state is HalveItMatchState
   return (state as HalveItMatchState).kind === 'halve-it';
 }
 
-/** Round K (0-indexed) targets segment (20 - K), unless it's the bull round. */
+/**
+ * Round K (0-indexed) targets segment (20 - K). If `includeBullRound` is on,
+ * an additional Bull round is appended after the numbered rounds (so total
+ * round count is `rounds + 1` in that case).
+ */
 export function halveItTargets(config: HalveItConfig): HalveItTarget[] {
   const { rounds, includeBullRound } = config;
   if (!Number.isInteger(rounds) || rounds < 1 || rounds > 20) {
@@ -104,8 +108,8 @@ export function halveItTargets(config: HalveItConfig): HalveItTarget[] {
     const segment = (20 - i) as NumberSegment;
     targets.push({ kind: 'number', segment });
   }
-  if (includeBullRound && rounds >= 1) {
-    targets[targets.length - 1] = { kind: 'bull' };
+  if (includeBullRound) {
+    targets.push({ kind: 'bull' });
   }
   return targets;
 }
@@ -285,7 +289,8 @@ function applyHalveItVisit(
   }
 
   // Round finished — advance to next round or finish the match.
-  const isLastRound = state.currentRoundIdx + 1 >= state.config.rounds;
+  const targets = halveItTargets(state.config);
+  const isLastRound = state.currentRoundIdx + 1 >= targets.length;
   if (isLastRound) {
     return {
       ...state,
@@ -298,7 +303,6 @@ function applyHalveItVisit(
     };
   }
 
-  const targets = halveItTargets(state.config);
   const newRoundIdx = state.currentRoundIdx + 1;
   const newRound = makeRound(newRoundIdx, targets[newRoundIdx]);
   return {
