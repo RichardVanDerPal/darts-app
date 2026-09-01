@@ -25,7 +25,7 @@ TypeScript engine with 67 unit tests covering every rule in
 
 ```bash
 pnpm install
-pnpm dev            # http://localhost:5173/Darts-app/
+pnpm dev            # http://localhost:5173/darts-app/
 pnpm test           # engine unit tests (vitest)
 pnpm build          # production build to dist/
 pnpm preview        # serve the built app locally
@@ -42,7 +42,7 @@ Push to `main` and [`.github/workflows/deploy.yml`](./.github/workflows/deploy.y
 will run tests, build, and publish `dist/` to GitHub Pages. Enable Pages in
 the repo settings with source **GitHub Actions**.
 
-The app is served under `/Darts-app/`. If you fork under a different repo
+The app is served under `/darts-app/`. If you fork under a different repo
 name, override the base path at build time:
 
 ```bash
@@ -73,7 +73,7 @@ src/
 public/
   favicon.svg
   icons/           # Generated PNGs (icon-192, icon-512, icon-512-maskable)
-  404.html         # Redirects to /Darts-app/ (safety net; hash router usually avoids this)
+  404.html         # Redirects to /darts-app/ (safety net; hash router usually avoids this)
 scripts/
   generate-icons.mjs
 ```

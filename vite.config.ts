@@ -2,9 +2,9 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// GitHub Pages serves the site at /Darts-app/. Override with VITE_BASE for
+// GitHub Pages serves the site at /darts-app/. Override with VITE_BASE for
 // custom domains or local previews.
-const base = process.env.VITE_BASE ?? '/Darts-app/';
+const base = process.env.VITE_BASE ?? '/darts-app/';
 
 export default defineConfig({
   base,
